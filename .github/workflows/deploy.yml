@@ -43,7 +43,12 @@ jobs:
       - name: SPA 404 fallback
         run: cp dist/index.html dist/404.html
 
+      # enablement: true → if Pages isn't yet configured on the repo, this
+      # action will enable it (Source = GitHub Actions) instead of 404ing.
+      # Avoids the one-time "go to Settings → Pages" manual step.
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
