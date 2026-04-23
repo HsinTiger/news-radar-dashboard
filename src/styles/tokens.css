@@ -1,0 +1,153 @@
+/* News Radar Dashboard — Design Tokens
+   Buffer + Linear + Vercel lineage. Warm near-white + ink near-black + single violet accent.
+   Status palette lifted from BRIEF §6 (gray/sky/violet/amber/emerald/rose). */
+
+:root {
+  /* warm neutrals */
+  --bg:            #FBFAF8;
+  --bg-raised:    #FFFFFF;
+  --bg-muted:     #F4F2EE;
+  --bg-inset:     #EFEDE8;
+
+  /* ink */
+  --fg:            #17171A;
+  --fg-1:          #3B3B40;
+  --fg-2:          #6A6A70;
+  --fg-3:          #9A9AA0;
+  --fg-4:          #C0BFC3;
+
+  --border:        #E6E4DE;
+  --border-strong: #D7D4CC;
+
+  /* accent */
+  --accent:        #6E56CF;
+  --accent-soft:   #EDE9FE;
+  --accent-ink:    #3B2C8A;
+
+  /* status (BRIEF §6) */
+  --st-fetched:    #9CA3AF; /* gray-400 */
+  --st-scored:    #0EA5E9; /* sky-500 */
+  --st-drafted:   #8B5CF6; /* violet-500 */
+  --st-queued:    #F59E0B; /* amber-500 */
+  --st-published: #10B981; /* emerald-500 */
+  --st-error:     #F43F5E; /* rose-500 */
+
+  --st-fetched-bg:   #F1F3F5;
+  --st-scored-bg:   #E0F2FE;
+  --st-drafted-bg:  #EDE9FE;
+  --st-queued-bg:   #FEF3C7;
+  --st-published-bg:#D1FAE5;
+  --st-error-bg:    #FFE4E6;
+
+  /* score thresholds */
+  --score-good:   #10B981;
+  --score-ok:     #F59E0B;
+  --score-bad:    #F43F5E;
+
+  /* shadows */
+  --shadow-sm: 0 1px 2px rgba(20,20,24,0.04);
+  --shadow:    0 2px 6px rgba(20,20,24,0.05), 0 1px 2px rgba(20,20,24,0.04);
+  --shadow-md: 0 6px 16px rgba(20,20,24,0.06), 0 2px 4px rgba(20,20,24,0.04);
+  --shadow-lg: 0 20px 48px rgba(20,20,24,0.12), 0 4px 12px rgba(20,20,24,0.06);
+
+  /* radii */
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r:    8px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+
+  /* type */
+  --f-sans: "Inter", "Noto Sans TC", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+  --f-serif: "Newsreader", "Source Serif Pro", Georgia, serif;
+}
+
+[data-theme="dark"] {
+  --bg:            #0C0C0E;
+  --bg-raised:    #17171A;
+  --bg-muted:     #1D1D21;
+  --bg-inset:     #121215;
+
+  --fg:            #F5F4F1;
+  --fg-1:          #D4D3CE;
+  --fg-2:          #8E8D89;
+  --fg-3:          #66655F;
+  --fg-4:          #3C3B37;
+
+  --border:        #2A2A2E;
+  --border-strong: #36353A;
+
+  --accent:        #8879EC;
+  --accent-soft:   #251D4A;
+  --accent-ink:    #D1C6FF;
+
+  --st-fetched-bg:   #1E1E22;
+  --st-scored-bg:   #0F2537;
+  --st-drafted-bg:  #221B47;
+  --st-queued-bg:   #3A2B0F;
+  --st-published-bg:#0F3326;
+  --st-error-bg:    #3A1420;
+}
+
+/* reset + base */
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { margin: 0; padding: 0; min-height: 100vh; }
+body {
+  font-family: var(--f-sans);
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: -0.005em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "cv11", "ss01";
+}
+
+button { font-family: inherit; cursor: pointer; background: none; border: none; color: inherit; padding: 0; }
+a { color: inherit; text-decoration: none; }
+[data-mono] { font-family: var(--f-mono); font-feature-settings: "tnum","zero"; }
+
+/* shared primitives */
+.nr-card {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+.nr-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: var(--bg-muted);
+  color: var(--fg-1);
+  white-space: nowrap;
+}
+.nr-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  display: inline-block;
+}
+.nr-hover { transition: background 80ms ease; }
+.nr-hover:hover { background: var(--bg-muted); }
+
+/* scrollbars (subtle) */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 6px; border: 2px solid var(--bg); }
+::-webkit-scrollbar-thumb:hover { background: var(--fg-3); }
+
+/* sidebar pulse */
+@keyframes pulse {
+  0% { transform: scale(1); opacity: .35; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+@keyframes slideIn {
+  from { transform: translateX(30px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
