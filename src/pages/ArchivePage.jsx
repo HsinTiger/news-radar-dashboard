@@ -1,10 +1,11 @@
 // ArchivePage — 3-col card grid of published posts with per-platform likes.
 
 import { Icon } from "@/components/Icon.jsx";
-import { StatusPill } from "@/components/StatusPill.jsx";
+import { StatusPill, EmergencyBadge } from "@/components/StatusPill.jsx";
 import { ScoreChip } from "@/components/ScoreChip.jsx";
 import { RelTime } from "@/components/RelTime.jsx";
 import { useNewsRadarDB } from "@/hooks/useNewsRadarDB.js";
+import { isEmergency } from "@/lib/origin.js";
 
 export function ArchivePage({ openDetail }) {
   const { items: all, topicById } = useNewsRadarDB();
@@ -87,6 +88,7 @@ export function ArchivePage({ openDetail }) {
                 </div>
                 <div style={{ position: "absolute", top: 10, left: 10, display: "flex", gap: 6 }}>
                   <StatusPill kind="published" size="sm" />
+                  {isEmergency(it) && <EmergencyBadge size="sm" />}
                   {failed && <StatusPill kind="failed" size="sm" />}
                 </div>
                 <div style={{ position: "absolute", top: 10, right: 10 }}>

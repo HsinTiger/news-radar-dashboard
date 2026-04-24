@@ -10,6 +10,7 @@ import { Icon } from "@/components/Icon.jsx";
 import { ScoreChip } from "@/components/ScoreChip.jsx";
 import { RelTime } from "@/components/RelTime.jsx";
 import { PipelineHealthBar } from "@/components/PipelineHealthBar.jsx";
+import { EmergencyBadge } from "@/components/StatusPill.jsx";
 import { useNewsRadarDB } from "@/hooks/useNewsRadarDB.js";
 import { fmtRel } from "@/lib/time.js";
 import { nextPublishLabel, minutesToNextPublish } from "@/lib/publishCron.js";
@@ -45,13 +46,20 @@ export function HomePage({ openDetail }) {
           hint={sys.last_publish_platforms.join(" · ")}
           value={<RelTime date={sys.last_publish_at} />}
           footer={
-            <div
-              style={{
-                fontSize: 12, color: "var(--fg-1)", marginTop: 10, lineHeight: 1.4,
-                display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
-              }}
-            >
-              {sys.last_publish_title}
+            <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+              {sys.last_publish_origin === "emergency" && (
+                <div>
+                  <EmergencyBadge size="sm" />
+                </div>
+              )}
+              <div
+                style={{
+                  fontSize: 12, color: "var(--fg-1)", lineHeight: 1.4,
+                  display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
+                }}
+              >
+                {sys.last_publish_title}
+              </div>
             </div>
           }
           accent="var(--st-published)"

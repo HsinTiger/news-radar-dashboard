@@ -308,6 +308,8 @@ export const MOCK_SYSTEM = {
   last_publish_at: mins(42).toISOString(),
   last_publish_title: "Rosalind 的第二次被剝奪——OpenAI 把垂直 AI 鎖進企業圍牆",
   last_publish_platforms: ["Facebook", "Instagram", "Threads"],
+  last_publish_feed_name: "Decrypt",
+  last_publish_origin: "pipeline",
   next_publish_at: futureM(28).toISOString(),
   queued_count: 5,
   today_cost_usd: 0.42,

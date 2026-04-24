@@ -6,6 +6,7 @@
 // topic_weights, reflection_events, token_usage_daily.
 
 import { TOPICS } from "@/lib/topics.js";
+import { originOf } from "@/lib/origin.js";
 
 // Convenience: run a SELECT and return rows as plain objects.
 function query(db, sql, params = []) {
@@ -179,11 +180,17 @@ export function buildItems(db) {
       image_status = "failed";
     }
 
+    // origin: emergency_manual (tools/emergency_oneshot.py writes this feed_name)
+    // vs regular harvester-driven pipeline. Kept as an explicit field so
+    // pages don't need to re-derive it — see src/lib/origin.js for the rule.
+    const origin = originOf({ feed_name: r.feed_name });
+
     return {
       id: r.draft_id || r.news_id,
       news_id: r.news_id,
       title: r.title,
       feed_name: r.feed_name,
+      origin,
       url: r.url,
       published_at: r.published_at,
       fetched_at: r.fetched_at,
@@ -285,7 +292,7 @@ export function buildSystem(db, now = new Date()) {
   const lastPublishRow = query(
     db,
     `
-    SELECT pl.posted_at, n.title, GROUP_CONCAT(pl.platform) AS platforms
+    SELECT pl.posted_at, n.title, n.feed_name, GROUP_CONCAT(pl.platform) AS platforms
     FROM publish_log pl
     JOIN drafts d ON d.id = pl.draft_id
     JOIN news_items n ON n.id = d.news_id
@@ -336,6 +343,10 @@ export function buildSystem(db, now = new Date()) {
     last_publish_at: lastPublishRow?.posted_at || null,
     last_publish_title: lastPublishRow?.title || null,
     last_publish_platforms: lastPublishPlatforms,
+    last_publish_feed_name: lastPublishRow?.feed_name || null,
+    last_publish_origin: lastPublishRow
+      ? originOf({ feed_name: lastPublishRow.feed_name })
+      : null,
     next_publish_at: nextPublishRow?.publish_at || null,
     queued_count: queuedCount,
     today_cost_usd: todayUsage.cost || 0,

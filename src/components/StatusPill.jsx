@@ -59,3 +59,33 @@ export function StatusPill({ kind, size = "md" }) {
     </span>
   );
 }
+
+// EmergencyBadge — flag items published via tools/emergency_oneshot.py (manual
+// operator publishes that bypass harvester). Distinct visual language from
+// StatusPill (uses --accent) so the two badges can coexist side-by-side
+// without color-clashing. See src/lib/origin.js for the derivation rule.
+export function EmergencyBadge({ size = "md" }) {
+  const sz = size === "sm" ? { p: "2px 7px", fs: "11px" } : { p: "3px 9px", fs: "12px" };
+  return (
+    <span
+      title="此則為手動發布（tools/emergency_oneshot.py），非 harvester 自動撿起"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        padding: sz.p,
+        fontSize: sz.fs,
+        fontWeight: 600,
+        lineHeight: 1,
+        borderRadius: "999px",
+        background: "var(--accent-soft)",
+        color: "var(--accent)",
+        border: "1px solid color-mix(in oklab, var(--accent) 30%, transparent)",
+      }}
+    >
+      {/* A lightning glyph to differentiate from the dot-prefixed StatusPill */}
+      <span aria-hidden="true" style={{ fontSize: sz.fs, lineHeight: 1 }}>⚡</span>
+      手動
+    </span>
+  );
+}

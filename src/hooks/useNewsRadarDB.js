@@ -57,6 +57,8 @@ export function useNewsRadarDB() {
             last_publish_at: null,
             last_publish_title: null,
             last_publish_platforms: [],
+            last_publish_feed_name: null,
+            last_publish_origin: null,
             next_publish_at: null,
             queued_count: 0,
             today_cost_usd: 0,
