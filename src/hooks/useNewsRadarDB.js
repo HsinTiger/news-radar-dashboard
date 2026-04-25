@@ -20,9 +20,18 @@ import {
   MOCK_COUNTERFACTUAL_SCORES,
 } from "@/data/mockData.js";
 import { TOPICS, topicById } from "@/lib/topics.js";
+import { setLive } from "@/lib/time.js";
 
 const LIVE_MODE = !!import.meta.env.VITE_USE_LIVE_DB;
 const REFRESH_MS = 5 * 60 * 1000;
+
+// Switch time.js out of frozen-mock mode at module load. After this flips,
+// getNow() returns `new Date()` on every call, so RelTime / fmtRel render
+// against real wall-clock time instead of the 2026-04-23T06:30Z mock anchor.
+// Module-level call (not effect) so even the first SSR-style render is correct.
+if (LIVE_MODE) {
+  setLive(true);
+}
 
 /**
  * Main data hook.

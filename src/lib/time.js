@@ -1,23 +1,40 @@
-// Time helpers — v1 uses a fixed NOW that matches the mock data so the dashboard
-// always shows a stable, reviewable state. When wired to sql.js, we'll swap NOW
-// to `new Date()` at the module boundary.
+// Time helpers — two modes.
 //
-// All absolute-time displays are Taipei (+08:00) since that's Hsin's operational
-// timezone. All `date` inputs accept Date or ISO string.
+// Mock mode (default): `_now` is frozen at NOW_MOCK so the dashboard renders
+// a stable, reviewable state for screenshots / dev. The hrs / mins / future
+// helpers use this so MOCK_ITEMS' relative timestamps don't drift.
+//
+// Live mode: useNewsRadarDB calls setLive(true) at module load. After that,
+// `getNow()` returns a fresh `new Date()` on every call, so fmtRel always
+// computes "N 小時前" against real wall-clock time. RelTime separately ticks
+// every 60s to force re-render as time advances.
+//
+// All absolute-time displays are Taipei (+08:00) — Hsin's operational timezone.
+// DB timestamps are confirmed UTC ISO with `+00:00` suffix (backend audit
+// 2026-04-25, all 1751 timestamps clean), so `+8h → Taipei` is safe.
 
 export const NOW_MOCK = new Date("2026-04-23T06:30:00Z"); // 14:30 Taipei
 
 let _now = NOW_MOCK;
+let _isLive = false;
 
-/** Allow callers (tests, live mode) to override the reference "now". */
+/** Allow tests / mock mode to override the reference "now". No-op in live mode. */
 export function setNow(d) {
   _now = typeof d === "string" ? new Date(d) : d;
 }
 
-export function getNow() {
-  return _now;
+/** Switch the module into live-clock mode. Called once by useNewsRadarDB. */
+export function setLive(v) {
+  _isLive = !!v;
 }
 
+export function getNow() {
+  return _isLive ? new Date() : _now;
+}
+
+// hrs / mins / future / futureM are mock-data builders (run at module load before
+// setLive flips). They intentionally read `_now` directly so MOCK_ITEMS gets
+// timestamps relative to the frozen NOW_MOCK.
 export const hrs = (h) => new Date(_now.getTime() - h * 3600_000);
 export const mins = (m) => new Date(_now.getTime() - m * 60_000);
 export const future = (h) => new Date(_now.getTime() + h * 3600_000);
@@ -39,7 +56,7 @@ export function fmtHM(d) {
 /** Relative time like「42 分鐘前」/「再 1 小時後」. */
 export function fmtRel(d) {
   const dt = toDate(d);
-  const diff = dt.getTime() - _now.getTime();
+  const diff = dt.getTime() - getNow().getTime();
   const abs = Math.abs(diff);
   const m = Math.round(abs / 60_000);
   const h = Math.round(abs / 3600_000);
