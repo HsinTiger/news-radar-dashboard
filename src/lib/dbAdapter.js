@@ -99,16 +99,23 @@ export function buildItems(db) {
         draftIds
       )
     : [];
+  // engagement_stats_latest VIEW (Phase 8.23, backend commit 0db9840) gives the
+  // latest row per (draft, platform) via correlated subquery on MAX(fetched_at).
+  // Switching FROM the table → VIEW means we no longer rely on the JS-side
+  // dedupe below for snapshot correctness; the dedupe stays as defensive code
+  // in case the VIEW ever returns more than one row per platform.
+  //
+  // Native columns (likes/comments/replies/shares/saves/reposts/quotes/views/
+  // reach) are post-engagement.py-fix shape (2026-04-25). VIEW exposes all
+  // engagement_stats columns + post_age_bucket; we don't read post_age_bucket
+  // here because this query is for the snapshot path. Time-series reads (for
+  // EngagementGrowthChart) will hit engagement_stats directly with a separate
+  // query that filters post_age_bucket IN (1, 24, 168).
   const engagementRows = draftIds.length
     ? query(
         db,
-        // replies/reposts/quotes/reach are native columns the engagement.py
-        // sync-fix (2026-04-25) writes correctly. Pre-fix rows have replies=0
-        // (Threads' real reply count was misaliased into `comments`); those
-        // rows naturally roll off as new poll rows land — dbAdapter takes the
-        // latest row per (draft, platform) below.
         `SELECT draft_id, platform, likes, comments, replies, shares, saves, reposts, quotes, views, reach, fetched_at
-         FROM engagement_stats WHERE draft_id IN (${draftIds.map(() => "?").join(",")})
+         FROM engagement_stats_latest WHERE draft_id IN (${draftIds.map(() => "?").join(",")})
          ORDER BY fetched_at ASC`,
         draftIds
       )
