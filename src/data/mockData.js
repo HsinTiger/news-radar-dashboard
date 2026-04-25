@@ -70,6 +70,26 @@ export const MOCK_ITEMS = [
       instagram: mkE({ likes: 18, comments: 1, saves:  4, views:  890, reach:  640 }),
       threads:   mkE({ likes:  9, replies:  2, reposts: 3, quotes: 1, views: 620 }),
     },
+    // Bucketed time-series for TrendTab. Logarithmic-ish growth: most engagement
+    // accrues in first 24h, leveling off by 168h. Final (168h) row matches the
+    // engagement snapshot above so the snapshot path and time-series path agree.
+    engagement_history: {
+      facebook: [
+        { post_age_bucket: 1,   likes:  6, comments: 0, shares: 1, views:  410, reach: 280 },
+        { post_age_bucket: 24,  likes: 19, comments: 2, shares: 4, views: 1080, reach: 740 },
+        { post_age_bucket: 168, likes: 24, comments: 3, shares: 5, views: 1240, reach: 860 },
+      ],
+      instagram: [
+        { post_age_bucket: 1,   likes:  4, comments: 0, saves: 1, views:  290, reach: 200 },
+        { post_age_bucket: 24,  likes: 14, comments: 1, saves: 3, views:  760, reach: 540 },
+        { post_age_bucket: 168, likes: 18, comments: 1, saves: 4, views:  890, reach: 640 },
+      ],
+      threads: [
+        { post_age_bucket: 1,   likes: 2, replies: 0, reposts: 0, quotes: 0, views: 180 },
+        { post_age_bucket: 24,  likes: 7, replies: 1, reposts: 2, quotes: 1, views: 510 },
+        { post_age_bucket: 168, likes: 9, replies: 2, reposts: 3, quotes: 1, views: 620 },
+      ],
+    },
     publish_log: [
       { platform: "facebook",  success: true, platform_post_id: "100123456_987654", posted_at: mins(42).toISOString() },
       { platform: "instagram", success: true, platform_post_id: "DA_pGxYzW1q",      posted_at: mins(41).toISOString() },

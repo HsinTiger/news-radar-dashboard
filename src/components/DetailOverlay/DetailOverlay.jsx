@@ -10,12 +10,14 @@ import { useNewsRadarDB, useItem } from "@/hooks/useNewsRadarDB.js";
 import { PostTab } from "./PostTab.jsx";
 import { ScoringTab } from "./ScoringTab.jsx";
 import { MetricsTab } from "./MetricsTab.jsx";
+import { TrendTab } from "./TrendTab.jsx";
 import { MetaTab } from "./MetaTab.jsx";
 
 const TABS = [
   ["post", "貼文預覽"],
   ["scoring", "Scorer 判斷"],
   ["metrics", "互動數據"],
+  ["trend", "趨勢"],
   ["meta", "原始 Meta"],
 ];
 
@@ -163,6 +165,7 @@ export function DetailOverlay({ itemId, onClose }) {
           {tab === "post" && <PostTab item={item} />}
           {tab === "scoring" && <ScoringTab item={item} />}
           {tab === "metrics" && <MetricsTab item={item} />}
+          {tab === "trend" && <TrendTab item={item} />}
           {tab === "meta" && <MetaTab item={item} />}
         </div>
       </div>

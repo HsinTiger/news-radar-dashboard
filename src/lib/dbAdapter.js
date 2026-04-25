@@ -99,18 +99,10 @@ export function buildItems(db) {
         draftIds
       )
     : [];
-  // engagement_stats_latest VIEW (Phase 8.23, backend commit 0db9840) gives the
-  // latest row per (draft, platform) via correlated subquery on MAX(fetched_at).
-  // Switching FROM the table → VIEW means we no longer rely on the JS-side
-  // dedupe below for snapshot correctness; the dedupe stays as defensive code
-  // in case the VIEW ever returns more than one row per platform.
-  //
-  // Native columns (likes/comments/replies/shares/saves/reposts/quotes/views/
-  // reach) are post-engagement.py-fix shape (2026-04-25). VIEW exposes all
-  // engagement_stats columns + post_age_bucket; we don't read post_age_bucket
-  // here because this query is for the snapshot path. Time-series reads (for
-  // EngagementGrowthChart) will hit engagement_stats directly with a separate
-  // query that filters post_age_bucket IN (1, 24, 168).
+  // Snapshot path — engagement_stats_latest VIEW (Phase 8.23, backend commit
+  // 0db9840) deduplicates to MAX(fetched_at) per (draft, platform) via
+  // correlated subquery. Defensive JS-side dedupe below stays as belt-and-
+  // suspenders.
   const engagementRows = draftIds.length
     ? query(
         db,
@@ -121,14 +113,34 @@ export function buildItems(db) {
       )
     : [];
 
+  // Time-series path — read engagement_stats directly, filtered to bucketed
+  // rows (post_age_bucket IN (1, 24, 168)). Legacy 137 rows (post_age_bucket
+  // NULL) are intentionally excluded; they were 4h-uniform samples that don't
+  // align with canonical buckets and would distort growth-curve rendering.
+  // Ordered by bucket ASC so TrendTab can render directly without re-sorting.
+  const historyRows = draftIds.length
+    ? query(
+        db,
+        `SELECT draft_id, platform, post_age_bucket,
+                likes, comments, replies, shares, saves, reposts, quotes, views, reach, fetched_at
+         FROM engagement_stats
+         WHERE draft_id IN (${draftIds.map(() => "?").join(",")})
+           AND post_age_bucket IS NOT NULL
+         ORDER BY draft_id, platform, post_age_bucket ASC`,
+        draftIds
+      )
+    : [];
+
   const pdByDraft = groupBy(platformDrafts, "draft_id");
   const plByDraft = groupBy(publishLogs, "draft_id");
   const enByDraft = groupBy(engagementRows, "draft_id");
+  const histByDraft = groupBy(historyRows, "draft_id");
 
   return items.map((r) => {
     const pds = pdByDraft.get(r.draft_id) || [];
     const pls = plByDraft.get(r.draft_id) || [];
     const ens = enByDraft.get(r.draft_id) || [];
+    const hist = histByDraft.get(r.draft_id) || [];
 
     // platforms: present in platform_drafts (ever composed for this platform).
     const platformSet = new Set(pds.map((p) => p.platform));
@@ -183,6 +195,33 @@ export function buildItems(db) {
       }
     }
 
+    // engagement_history — bucketed time-series for TrendTab growth curves.
+    // Shape: { facebook: [{post_age_bucket, likes, ...}], instagram: [...], threads: [...] }
+    // Each platform's array is ordered by post_age_bucket ASC. Buckets that
+    // haven't been polled yet are absent (not zero-filled) so the chart can
+    // distinguish "polled = 0 likes" from "not polled".
+    let engagement_history;
+    if (hist.length) {
+      engagement_history = { facebook: [], instagram: [], threads: [] };
+      for (const h of hist) {
+        const arr = engagement_history[h.platform];
+        if (!arr) continue; // unknown platform — skip defensively
+        arr.push({
+          post_age_bucket: h.post_age_bucket,
+          likes: h.likes || 0,
+          comments: h.comments || 0,
+          replies: h.replies || 0,
+          shares: h.shares || 0,
+          saves: h.saves || 0,
+          reposts: h.reposts || 0,
+          quotes: h.quotes || 0,
+          views: h.views || 0,
+          reach: h.reach || 0,
+          fetched_at: h.fetched_at,
+        });
+      }
+    }
+
     // status: mirrors mock — dropped items show drop state, otherwise use drafts.status.
     // queue_status mirrors drafts.queue_status (null when dropped/never-queued).
     const status = r.n_status === "dropped" ? "dropped" : r.d_status || r.n_status;
@@ -223,6 +262,7 @@ export function buildItems(db) {
       drop_reason: r.drop_reason || null,
       drop_detail: null, // not stored in current schema
       engagement,
+      engagement_history,
       publish_log,
       full_texts,
     };
