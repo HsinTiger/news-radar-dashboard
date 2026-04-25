@@ -26,8 +26,21 @@
 import { hrs, mins, future, futureM, NOW_MOCK } from "@/lib/time.js";
 import { topicById } from "@/lib/topics.js";
 
-const mkE = (lk, co, sh, sv, rp, qt, vw) => ({
-  likes: lk, comments: co, shares: sh, saves: sv, reposts: rp, quotes: qt, views: vw,
+// Engagement helper. Native column names match engagement_stats post-fix
+// (2026-04-25): replies/reposts/quotes/reach are real native columns; the
+// pre-fix Threads aliasing (replies → comments, reposts+quotes → shares)
+// is gone. Mock data follows the native convention so MetricsTab + dbAdapter
+// don't need parallel "is this mock or live?" branches.
+const mkE = (o = {}) => ({
+  likes: o.likes || 0,
+  comments: o.comments || 0,  // FB/IG only
+  replies: o.replies || 0,    // Threads only
+  shares: o.shares || 0,      // FB only
+  saves: o.saves || 0,        // IG only
+  reposts: o.reposts || 0,    // Threads only
+  quotes: o.quotes || 0,      // Threads only
+  views: o.views || 0,
+  reach: o.reach || 0,        // FB/IG only (Threads writes 0)
 });
 
 export const MOCK_ITEMS = [
@@ -53,9 +66,9 @@ export const MOCK_ITEMS = [
     image_url:
       "https://cdn.decrypt.co/resize/1024/height/512/wp-content/uploads/2026/04/decrypt-style-openai-logo-gID_7.png",
     engagement: {
-      facebook:  mkE(24, 3, 5, 0, 0, 0, 1240),
-      instagram: mkE(18, 1, 0, 4, 0, 0,  890),
-      threads:   mkE( 9, 2, 0, 0, 3, 1,  620),
+      facebook:  mkE({ likes: 24, comments: 3, shares: 5, views: 1240, reach:  860 }),
+      instagram: mkE({ likes: 18, comments: 1, saves:  4, views:  890, reach:  640 }),
+      threads:   mkE({ likes:  9, replies:  2, reposts: 3, quotes: 1, views: 620 }),
     },
     publish_log: [
       { platform: "facebook",  success: true, platform_post_id: "100123456_987654", posted_at: mins(42).toISOString() },
@@ -219,9 +232,9 @@ OpenAI 週四發表 GPT-Rosalind,是他們第一個『領域專用』推理模�
     image_status: "ok",
     publish_at: hrs(x.hours).toISOString(),
     engagement: {
-      facebook:  mkE(x.fbL, 4, 8, 0, 0, 0, x.fbL * 50),
-      instagram: mkE(x.igL, 2, 0, 6, 0, 0, x.igL * 45),
-      threads:   mkE(x.thL, 3, 0, 0, 2, 1, x.thL * 70),
+      facebook:  mkE({ likes: x.fbL, comments: 4, shares: 8, views: x.fbL * 50, reach: x.fbL * 30 }),
+      instagram: mkE({ likes: x.igL, comments: 2, saves:  6, views: x.igL * 45, reach: x.igL * 25 }),
+      threads:   mkE({ likes: x.thL, replies:  3, reposts: 2, quotes: 1, views: x.thL * 70 }),
     },
     publish_log: [
       { platform: "facebook",  success: !x.failed?.includes("facebook"),  posted_at: hrs(x.hours).toISOString(), error_message: x.failed?.includes("facebook")  ? "Image download failed" : null },

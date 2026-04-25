@@ -2,6 +2,16 @@
 
 import { Icon } from "@/components/Icon.jsx";
 
+// Per-platform metric tuples: [engagement_object_key, display_label, icon_name].
+// Native column names match engagement_stats post-fix (2026-04-25):
+//   - FB:      likes / comments / shares / views / reach (post_impressions_unique)
+//   - IG:      likes / comments / saves / views / reach (insights metric=reach)
+//   - Threads: likes / replies / reposts / quotes / views (no comments/shares/reach)
+//
+// Pre-fix rows (Threads only) had reply counts misaliased into `comments` and
+// reposts+quotes summed into `shares`. `dbAdapter.js` takes the LATEST row per
+// (draft, platform), so once a Threads post gets a fresh poll the dashboard
+// auto-corrects without any code change here.
 const PLATS = [
   {
     k: "facebook",
@@ -12,6 +22,7 @@ const PLATS = [
       ["likes", "讚", "heart"],
       ["comments", "留言", "comment"],
       ["shares", "分享", "share"],
+      ["reach", "觸及", "views"],
       ["views", "觀看", "views"],
     ],
   },
@@ -24,6 +35,7 @@ const PLATS = [
       ["likes", "讚", "heart"],
       ["comments", "留言", "comment"],
       ["saves", "收藏", "save"],
+      ["reach", "觸及", "views"],
       ["views", "觀看", "views"],
     ],
   },
@@ -34,7 +46,7 @@ const PLATS = [
     fg: "var(--fg)",
     metrics: [
       ["likes", "讚", "heart"],
-      ["comments", "回覆", "comment"],
+      ["replies", "回覆", "comment"],
       ["reposts", "轉發", "share"],
       ["quotes", "引用", "comment"],
       ["views", "觀看", "views"],

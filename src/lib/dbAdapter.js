@@ -102,7 +102,12 @@ export function buildItems(db) {
   const engagementRows = draftIds.length
     ? query(
         db,
-        `SELECT draft_id, platform, likes, comments, shares, saves, reposts, quotes, views, fetched_at
+        // replies/reposts/quotes/reach are native columns the engagement.py
+        // sync-fix (2026-04-25) writes correctly. Pre-fix rows have replies=0
+        // (Threads' real reply count was misaliased into `comments`); those
+        // rows naturally roll off as new poll rows land — dbAdapter takes the
+        // latest row per (draft, platform) below.
+        `SELECT draft_id, platform, likes, comments, replies, shares, saves, reposts, quotes, views, reach, fetched_at
          FROM engagement_stats WHERE draft_id IN (${draftIds.map(() => "?").join(",")})
          ORDER BY fetched_at ASC`,
         draftIds
@@ -158,12 +163,14 @@ export function buildItems(db) {
         if (e) {
           engagement[plat] = {
             likes: e.likes || 0,
-            comments: e.comments || 0,
-            shares: e.shares || 0,
-            saves: e.saves || 0,
-            reposts: e.reposts || 0,
-            quotes: e.quotes || 0,
+            comments: e.comments || 0,    // FB/IG only; Threads writes 0 post-fix
+            replies: e.replies || 0,      // Threads only; FB/IG write 0
+            shares: e.shares || 0,        // FB only; Threads writes 0 post-fix
+            saves: e.saves || 0,          // IG only
+            reposts: e.reposts || 0,      // Threads only (post-fix)
+            quotes: e.quotes || 0,        // Threads only (post-fix)
             views: e.views || 0,
+            reach: e.reach || 0,          // FB post_impressions_unique / IG insights metric=reach
           };
         }
       }
