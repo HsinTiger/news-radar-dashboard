@@ -548,3 +548,39 @@ export function buildTopics(db) {
     };
   });
 }
+
+// ---------- Phase 9 Item 9: Reflector proposals ----------
+
+// Fetch proposals from GitHub state-branch JSONL (live mode)
+// Falls back to empty array if fetch fails (network error, 404, etc.)
+export async function fetchProposalsLive(isoWeek) {
+  try {
+    const url = `https://raw.githubusercontent.com/HsinTiger/news-radar/state/data/05_reflect/proposals/${isoWeek}.jsonl`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      console.warn(`Proposals file 404 or error: ${response.status}`);
+      return [];
+    }
+    const text = await response.text();
+    if (!text.trim()) return [];
+    
+    // Parse JSONL (one JSON object per line)
+    const proposals = text
+      .split("\n")
+      .filter((line) => line.trim())
+      .map((line) => {
+        try {
+          return JSON.parse(line);
+        } catch (e) {
+          console.warn("Failed to parse proposal line:", line, e);
+          return null;
+        }
+      })
+      .filter(Boolean);
+    
+    return proposals;
+  } catch (error) {
+    console.error("Failed to fetch proposals:", error);
+    return [];
+  }
+}

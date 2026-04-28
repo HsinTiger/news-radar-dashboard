@@ -1,14 +1,3 @@
-// useNewsRadarDB — the single data entrypoint for the dashboard.
-//
-// Modes (picked at build time via `import.meta.env.VITE_USE_LIVE_DB`):
-//   - Mock (default): synchronous fixture from `@/data/mockData.js`. Used for
-//     local dev without network and for Vitest / screenshot runs.
-//   - Live: fetches the sqlite DB from the backend's `state` branch via sql.js,
-//     shapes rows through `@/lib/dbAdapter.js`, and refreshes every 5 minutes.
-//
-// Design rule: every page reads from this hook, never imports mockData directly.
-// That keeps the mock ↔ live swap to a single file.
-
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   MOCK_ITEMS,
@@ -18,9 +7,11 @@ import {
   MOCK_PIPELINE_HEALTH,
   MOCK_DROP_BREAKDOWN,
   MOCK_COUNTERFACTUAL_SCORES,
+  MOCK_PROPOSALS,
 } from "@/data/mockData.js";
 import { TOPICS, topicById } from "@/lib/topics.js";
-import { setLive } from "@/lib/time.js";
+import { setLive, getNow } from "@/lib/time.js";
+import { getISOWeekString } from "@/lib/iso-week.js";
 
 const LIVE_MODE = !!import.meta.env.VITE_USE_LIVE_DB;
 const REFRESH_MS = 5 * 60 * 1000;
@@ -44,6 +35,7 @@ if (LIVE_MODE) {
  *   now: Date,
  *   loading: boolean,
  *   error: Error | null,
+ *   proposals: Array,
  *   refresh: () => void,
  * }}
  */
@@ -83,6 +75,8 @@ export function useNewsRadarDB() {
           pipelineHealth: { harvested: 0, scored: 0, composed: 0, queued: 0, published: 0, window_mins: 60 },
           dropBreakdown: { reasons: [], total: 0, dominantReason: null },
           counterfactualScores: [],
+          proposals: [],
+          proposalsPollTime: null,
         }
       : {
           items: MOCK_ITEMS,
@@ -94,6 +88,8 @@ export function useNewsRadarDB() {
           pipelineHealth: MOCK_PIPELINE_HEALTH,
           dropBreakdown: MOCK_DROP_BREAKDOWN,
           counterfactualScores: MOCK_COUNTERFACTUAL_SCORES,
+          proposals: MOCK_PROPOSALS,
+          proposalsPollTime: MOCK_NOW,
         }
   );
   const [loading, setLoading] = useState(LIVE_MODE);
@@ -116,8 +112,9 @@ export function useNewsRadarDB() {
     (async () => {
       try {
         // Dynamic import keeps sql.js out of the mock-mode bundle.
-        const [{ loadLiveDB }, adapter] = await Promise.all([
+        const [{ loadLiveDB }, adapter, { fetchProposalsLive }] = await Promise.all([
           import("@/lib/db.js"),
+          import("@/lib/dbAdapter.js"),
           import("@/lib/dbAdapter.js"),
         ]);
         if (cancelled) return;
@@ -133,7 +130,10 @@ export function useNewsRadarDB() {
         }
         currentDb = db;
 
-        const now = new Date();
+        const now = getNow();
+        const isoWeek = getISOWeekString(now);
+        const proposals = await fetchProposalsLive(isoWeek);
+
         const next = {
           items: adapter.buildItems(db),
           timeline: adapter.buildTimeline(db, now),
@@ -144,6 +144,8 @@ export function useNewsRadarDB() {
           pipelineHealth: adapter.buildPipelineHealth(db, now),
           dropBreakdown: adapter.buildDropBreakdown(db),
           counterfactualScores: adapter.buildCounterfactualScores(db, now),
+          proposals,
+          proposalsPollTime: proposals.length > 0 ? now : null,
         };
 
         // Close the previously-held DB before swapping in the new one.
@@ -225,6 +227,8 @@ export function useNewsRadarDB() {
       pipelineHealth: snapshot.pipelineHealth,
       dropBreakdown: snapshot.dropBreakdown,
       counterfactualScores: snapshot.counterfactualScores,
+      proposals: snapshot.proposals,
+      proposalsPollTime: snapshot.proposalsPollTime,
       loading,
       error,
       refresh: doRefresh,

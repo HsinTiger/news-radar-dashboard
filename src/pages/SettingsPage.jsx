@@ -5,10 +5,11 @@ import { Fragment } from "react";
 import { Icon } from "@/components/Icon.jsx";
 import { RelTime } from "@/components/RelTime.jsx";
 import { ThresholdSliders } from "@/components/ThresholdSliders.jsx";
+import { ProposalsSection } from "@/components/ProposalsSection.jsx";
 import { useNewsRadarDB } from "@/hooks/useNewsRadarDB.js";
 
 export function SettingsPage() {
-  const { system, topics: allTopics, counterfactualScores } = useNewsRadarDB();
+  const { system, topics: allTopics, counterfactualScores, proposals, proposalsPollTime } = useNewsRadarDB();
   const topics = [...allTopics].sort((a, b) => b.weight - a.weight);
   const thresholds = system.thresholds;
   const reflections = system.reflections || [];
@@ -31,6 +32,13 @@ export function SettingsPage() {
           此頁<strong>純顯示</strong>。所有設定由自動系統調整，Alex 無法從 dashboard 改動。
         </span>
       </div>
+
+      {/* Phase 9 Item 9: Reflector proposals section (above threshold sliders) */}
+      <ProposalsSection 
+        proposals={proposals} 
+        isLive={!!import.meta.env.VITE_USE_LIVE_DB}
+        pollTime={proposalsPollTime}
+      />
 
       {/* Phase 1D: interactive threshold sliders + 7-day counterfactual */}
       <ThresholdSliders thresholds={thresholds} scores={counterfactualScores} />
