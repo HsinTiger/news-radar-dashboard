@@ -233,6 +233,7 @@ export function ProposalsSection({ proposals = [], isLive = false, pollTime = nu
             <ProposalCard
               key={proposal.fire_id}
               proposal={proposal}
+              decision={cardStates[proposal.fire_id] || null}
               onApprove={handleApprove}
               onReject={handleReject}
               onAmend={handleAmend}

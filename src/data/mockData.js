@@ -440,6 +440,8 @@ export const MOCK_PROPOSALS = [
         publish_count_7d: "5",
         avg_engagement_per_post: "12.4",
       },
+      reason:
+        "Past 7d: 5 publishes from 38 fetches (yield=0.03, avg engagement 12.4); feed_age=86d past 30d grace, expected ~7/wk.",
       confidence: "HIGH",
     },
     action: {
@@ -495,6 +497,8 @@ export const MOCK_PROPOSALS = [
         proposed_threshold: "0.68",
         engagement_per_published: "+8%",
       },
+      reason:
+        "62 polled samples in last 30d; tail-mean engagement 14.20 → 18.74 (+4.54 per published post).",
       confidence: "HIGH",
     },
     action: {

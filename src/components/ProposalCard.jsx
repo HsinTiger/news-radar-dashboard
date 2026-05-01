@@ -30,6 +30,14 @@ const CONFIDENCE_COLORS = {
   LOW: "var(--st-error)",
 };
 
+// Decision-state visuals — used when a card has been approved / rejected / amended.
+// Kept in one place so the card body and the status pill stay in sync.
+const DECISION_VISUALS = {
+  approved: { label: "Approved",  icon: "✅", color: "var(--st-published)" },
+  rejected: { label: "Rejected",  icon: "❌", color: "var(--st-error)" },
+  amended:  { label: "Amended",   icon: "📝", color: "var(--accent)" },
+};
+
 function getProposalTitle(proposal) {
   switch (proposal.proposal_type) {
     case "sunset_feed":
@@ -48,73 +56,157 @@ function getProposalTitle(proposal) {
   }
 }
 
-function getEvidenceSummary(proposal) {
+// Render the evidence block. Prefer evidence.reason (a one-line synthesized
+// rationale emitted by the analyzer) when present — that's the human-readable
+// "why" we want boss-pinned reviewers to see first. Fall back to a couple of
+// raw metrics when reason is missing (older proposals, mock data, etc.).
+function renderEvidence(proposal) {
   const { evidence } = proposal;
-  if (!evidence) return "";
-  
-  const lines = [];
-  if (evidence.sample_ids && evidence.sample_ids.length > 0) {
-    lines.push(`Samples: ${evidence.sample_ids.join(", ")}`);
-  }
-  if (evidence.metrics) {
-    const metricLines = Object.entries(evidence.metrics)
-      .slice(0, 2)
-      .map(([k, v]) => `${k}=${v}`);
-    if (metricLines.length) lines.push(metricLines.join(" · "));
-  }
-  return lines.join("\n");
+  if (!evidence) return null;
+
+  const reason = evidence.reason && String(evidence.reason).trim();
+  const sampleIds =
+    evidence.sample_ids && evidence.sample_ids.length > 0
+      ? `Samples: ${evidence.sample_ids.join(", ")}`
+      : null;
+  const metricLine = evidence.metrics
+    ? Object.entries(evidence.metrics)
+        .slice(0, 2)
+        .map(([k, v]) => `${k}=${v}`)
+        .join(" · ")
+    : null;
+
+  return (
+    <div
+      style={{
+        fontSize: 11,
+        color: "var(--fg-2)",
+        marginBottom: 10,
+        lineHeight: 1.5,
+      }}
+    >
+      {reason && (
+        <div
+          style={{
+            color: "var(--fg)",
+            marginBottom: sampleIds || metricLine ? 6 : 0,
+          }}
+        >
+          <span style={{ color: "var(--fg-3)", marginRight: 4 }}>Reason:</span>
+          {reason}
+        </div>
+      )}
+      {sampleIds && <div>{sampleIds}</div>}
+      {metricLine && <div>{metricLine}</div>}
+    </div>
+  );
 }
 
-export function ProposalCard({ proposal, onApprove, onReject, onAmend }) {
+export function ProposalCard({ proposal, decision, onApprove, onReject, onAmend }) {
   const [copied, setCopied] = useState(false);
-  const [showRejectInput, setShowRejectInput] = useState(false);
-  const [showAmendInput, setShowAmendInput] = useState(false);
+  // Open lane state: null | "approve" | "reject" | "amend".
+  // Mutually exclusive — opening a lane closes the others. Approve has no
+  // text input but still opens a lane to surface a Confirm/Cancel pair, so
+  // all three actions follow the same 2-step "open → confirm/cancel" pattern.
+  const [openLane, setOpenLane] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
   const [amendComment, setAmendComment] = useState("");
 
-  const isCopied = copied;
   const fireIdShort = proposal.fire_id.split("-")[0].slice(0, 8);
+  const isDecided = Boolean(decision);
+  const decisionVisual = isDecided ? DECISION_VISUALS[decision] : null;
 
   const handleCopy = async (text) => {
-    await navigator.clipboard.writeText(text);
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      /* clipboard unavailable (e.g. http preview) — fail silently */
+    }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleApprove = () => {
+  // ----- Lane openers (all do the same thing — switch which lane is open) -----
+  const openApprove = () => { if (!isDecided) setOpenLane("approve"); };
+  const openReject  = () => { if (!isDecided) setOpenLane("reject");  };
+  const openAmend   = () => { if (!isDecided) setOpenLane("amend");   };
+
+  const cancelLane = () => {
+    setOpenLane(null);
+    setRejectReason("");
+    setAmendComment("");
+  };
+
+  // ----- Confirm handlers -----
+  const confirmApprove = () => {
     const text = `phase9-decision approve ${fireIdShort}`;
     handleCopy(text);
     onApprove?.(proposal.fire_id);
+    setOpenLane(null);
   };
 
-  const handleReject = () => {
-    if (!rejectReason.trim() && showRejectInput) return;
-    if (showRejectInput) {
-      const text = `phase9-decision reject ${fireIdShort} reason: ${rejectReason}`;
-      handleCopy(text);
-      onReject?.(proposal.fire_id, rejectReason);
-      setRejectReason("");
-      setShowRejectInput(false);
-    } else {
-      setShowRejectInput(true);
-    }
+  const confirmReject = () => {
+    if (!rejectReason.trim()) return;
+    const text = `phase9-decision reject ${fireIdShort} reason: ${rejectReason}`;
+    handleCopy(text);
+    onReject?.(proposal.fire_id, rejectReason);
+    setRejectReason("");
+    setOpenLane(null);
   };
 
-  const handleAmend = () => {
-    if (!amendComment.trim() && showAmendInput) return;
-    if (showAmendInput) {
-      const text = `phase9-decision amend ${fireIdShort} comment: ${amendComment}`;
-      handleCopy(text);
-      onAmend?.(proposal.fire_id, amendComment);
-      setAmendComment("");
-      setShowAmendInput(false);
-    } else {
-      setShowAmendInput(true);
-    }
+  const confirmAmend = () => {
+    if (!amendComment.trim()) return;
+    const text = `phase9-decision amend ${fireIdShort} comment: ${amendComment}`;
+    handleCopy(text);
+    onAmend?.(proposal.fire_id, amendComment);
+    setAmendComment("");
+    setOpenLane(null);
   };
 
   const analyzerColor = ANALYZER_COLORS[proposal.analyzer] || "var(--fg-3)";
   const confidenceColor = CONFIDENCE_COLORS[proposal.evidence?.confidence] || "var(--fg-3)";
+
+  // ----- Shared button styles -----
+  const baseBtn = {
+    padding: "6px 12px",
+    fontSize: 11,
+    fontWeight: 600,
+    background: "transparent",
+    borderRadius: 4,
+    cursor: "pointer",
+    transition: "all 0.15s ease",
+    fontFamily: "inherit",
+  };
+  const outlineBtn = (color, disabled) => ({
+    ...baseBtn,
+    color: disabled ? "var(--fg-4)" : color,
+    border: `1px solid ${disabled ? "var(--border)" : color}`,
+    cursor: disabled ? "not-allowed" : "pointer",
+    opacity: disabled ? 0.5 : 1,
+  });
+  const filledBtn = (color, disabled) => ({
+    ...baseBtn,
+    color: "white",
+    background: disabled ? "var(--fg-4)" : color,
+    border: `1px solid ${disabled ? "var(--fg-4)" : color}`,
+    cursor: disabled ? "not-allowed" : "pointer",
+    opacity: disabled ? 0.6 : 1,
+  });
+  const ghostBtn = {
+    ...baseBtn,
+    color: "var(--fg-2)",
+    border: "1px solid var(--border)",
+  };
+
+  // Hover handlers for outline buttons (paint on hover, revert on leave).
+  const hoverIn = (color) => (e) => {
+    e.currentTarget.style.background = color;
+    e.currentTarget.style.color = "white";
+  };
+  const hoverOut = (color) => (e) => {
+    e.currentTarget.style.background = "transparent";
+    e.currentTarget.style.color = color;
+  };
 
   return (
     <div
@@ -122,12 +214,13 @@ export function ProposalCard({ proposal, onApprove, onReject, onAmend }) {
       style={{
         padding: 16,
         marginBottom: 12,
-        opacity: isCopied ? 0.6 : 1,
+        opacity: isDecided ? 0.75 : 1,
         transition: "opacity 0.2s ease",
-        borderLeft: `4px solid ${analyzerColor}`,
+        borderLeft: `4px solid ${isDecided ? decisionVisual.color : analyzerColor}`,
+        background: isDecided ? "var(--bg-muted)" : undefined,
       }}
     >
-      {/* Header row: analyzer | platform | confidence */}
+      {/* Header row: analyzer | platform | confidence (or decision pill when decided) */}
       <div
         style={{
           display: "flex",
@@ -149,7 +242,7 @@ export function ProposalCard({ proposal, onApprove, onReject, onAmend }) {
           >
             {ANALYZER_NAMES[proposal.analyzer]}
           </div>
-          
+
           {proposal.boss_attention_required && (
             <div
               title="This category/feed is pinned by Hsin — requires approval before any change"
@@ -180,16 +273,36 @@ export function ProposalCard({ proposal, onApprove, onReject, onAmend }) {
           </div>
         </div>
 
-        <div
-          style={{
-            fontSize: 10,
-            fontWeight: 600,
-            color: confidenceColor,
-            textTransform: "uppercase",
-          }}
-        >
-          {proposal.evidence?.confidence || "?"}
-        </div>
+        {isDecided ? (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 11,
+              fontWeight: 700,
+              color: decisionVisual.color,
+              padding: "3px 10px",
+              border: `1px solid ${decisionVisual.color}`,
+              borderRadius: 12,
+              background: "var(--bg)",
+            }}
+          >
+            <span>{decisionVisual.icon}</span>
+            <span>{decisionVisual.label}</span>
+          </div>
+        ) : (
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 600,
+              color: confidenceColor,
+              textTransform: "uppercase",
+            }}
+          >
+            {proposal.evidence?.confidence || "?"}
+          </div>
+        )}
       </div>
 
       {/* Title line */}
@@ -205,18 +318,8 @@ export function ProposalCard({ proposal, onApprove, onReject, onAmend }) {
         {getProposalTitle(proposal)}
       </div>
 
-      {/* Evidence summary */}
-      <div
-        style={{
-          fontSize: 11,
-          color: "var(--fg-2)",
-          marginBottom: 10,
-          lineHeight: 1.5,
-          whiteSpace: "pre-wrap",
-        }}
-      >
-        {getEvidenceSummary(proposal)}
-      </div>
+      {/* Evidence block (reason + sample/metrics fallback) */}
+      {renderEvidence(proposal)}
 
       {/* Action target */}
       <div
@@ -234,53 +337,98 @@ export function ProposalCard({ proposal, onApprove, onReject, onAmend }) {
         {proposal.action.target_config} · {proposal.action.field}
       </div>
 
-      {/* Reject reason input (if visible) */}
-      {showRejectInput && (
+      {/* Approve confirmation banner (no input — just affords symmetry) */}
+      {openLane === "approve" && !isDecided && (
+        <div
+          style={{
+            marginBottom: 10,
+            padding: "8px 10px",
+            fontSize: 11,
+            lineHeight: 1.5,
+            color: "var(--fg)",
+            background: "var(--bg-muted)",
+            border: "1px solid var(--st-published)",
+            borderRadius: 4,
+          }}
+        >
+          Confirm: approve this proposal as-is and copy the deploy command?
+        </div>
+      )}
+
+      {/* Reject reason textarea (if visible). Multi-line so longer
+          rationale fits without scrolling. Enter submits; Shift+Enter
+          inserts a newline; Esc cancels — same behavior as Amend below. */}
+      {openLane === "reject" && !isDecided && (
         <div style={{ marginBottom: 10 }}>
-          <input
-            type="text"
-            placeholder="Reason for rejection..."
+          <textarea
+            placeholder="Reason for rejection... (Enter to submit, Shift+Enter for newline, Esc to cancel)"
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                confirmReject();
+              }
+              if (e.key === "Escape") cancelLane();
+            }}
+            autoFocus
+            rows={3}
             style={{
               width: "100%",
-              padding: "6px 8px",
-              fontSize: 11,
-              border: "1px solid var(--border)",
+              padding: "8px 10px",
+              fontSize: 12,
+              lineHeight: 1.5,
+              border: "1px solid var(--st-error)",
               borderRadius: 4,
               background: "var(--bg-muted)",
               color: "var(--fg)",
               fontFamily: "inherit",
               boxSizing: "border-box",
+              resize: "vertical",
+              minHeight: 60,
             }}
           />
         </div>
       )}
 
-      {/* Amend comment input (if visible) */}
-      {showAmendInput && (
+      {/* Amend comment textarea (if visible) */}
+      {openLane === "amend" && !isDecided && (
         <div style={{ marginBottom: 10 }}>
-          <input
-            type="text"
-            placeholder="Amendment comment..."
+          <textarea
+            placeholder="Amendment comment... (Enter to submit, Shift+Enter for newline, Esc to cancel)"
             value={amendComment}
             onChange={(e) => setAmendComment(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                confirmAmend();
+              }
+              if (e.key === "Escape") cancelLane();
+            }}
+            autoFocus
+            rows={3}
             style={{
               width: "100%",
-              padding: "6px 8px",
-              fontSize: 11,
-              border: "1px solid var(--border)",
+              padding: "8px 10px",
+              fontSize: 12,
+              lineHeight: 1.5,
+              border: "1px solid var(--accent)",
               borderRadius: 4,
               background: "var(--bg-muted)",
               color: "var(--fg)",
               fontFamily: "inherit",
               boxSizing: "border-box",
+              resize: "vertical",
+              minHeight: 60,
             }}
           />
         </div>
       )}
 
-      {/* Button row */}
+      {/* Button row — four modes, ALL non-decided modes use the same
+          "[colored Confirm filled-button] + [ghost Cancel]" shape so the
+          confirm/cancel pair is visually identical across Approve, Reject,
+          and Amend lanes. The only difference is the action color. */}
       <div
         style={{
           display: "flex",
@@ -289,69 +437,91 @@ export function ProposalCard({ proposal, onApprove, onReject, onAmend }) {
           flexWrap: "wrap",
         }}
       >
-        <button
-          onClick={handleApprove}
-          style={{
-            padding: "6px 12px",
-            fontSize: 11,
-            fontWeight: 600,
-            color: "var(--st-published)",
-            background: "transparent",
-            border: `1px solid var(--st-published)`,
-            borderRadius: 4,
-            cursor: "pointer",
-            transition: "all 0.2s ease",
-            opacity: isCopied ? 0.5 : 1,
-          }}
-          onMouseEnter={(e) => !isCopied && (e.currentTarget.style.background = "var(--st-published)", e.currentTarget.style.color = "white")}
-          onMouseLeave={(e) => !isCopied && (e.currentTarget.style.background = "transparent", e.currentTarget.style.color = "var(--st-published)")}
-        >
-          ✅ Approve
-        </button>
+        {isDecided ? (
+          <div
+            style={{
+              fontSize: 11,
+              color: "var(--fg-2)",
+              fontStyle: "italic",
+            }}
+          >
+            {decisionVisual.icon} Decision recorded — paste the copied command to PM to deploy.
+          </div>
+        ) : openLane === "approve" ? (
+          <>
+            <button
+              onClick={confirmApprove}
+              style={filledBtn("var(--st-published)", false)}
+            >
+              ✅ Confirm Approve
+            </button>
+            <button onClick={cancelLane} style={ghostBtn}>
+              Cancel
+            </button>
+          </>
+        ) : openLane === "reject" ? (
+          <>
+            <button
+              onClick={confirmReject}
+              disabled={!rejectReason.trim()}
+              style={filledBtn("var(--st-error)", !rejectReason.trim())}
+            >
+              ❌ Confirm Reject
+            </button>
+            <button onClick={cancelLane} style={ghostBtn}>
+              Cancel
+            </button>
+          </>
+        ) : openLane === "amend" ? (
+          <>
+            <button
+              onClick={confirmAmend}
+              disabled={!amendComment.trim()}
+              style={filledBtn("var(--accent)", !amendComment.trim())}
+            >
+              📝 Confirm Amend
+            </button>
+            <button onClick={cancelLane} style={ghostBtn}>
+              Cancel
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={openApprove}
+              style={outlineBtn("var(--st-published)", false)}
+              onMouseEnter={hoverIn("var(--st-published)")}
+              onMouseLeave={hoverOut("var(--st-published)")}
+              title="Accept the proposal as-is. You'll be asked to confirm."
+            >
+              ✅ Approve
+            </button>
 
-        <button
-          onClick={handleReject}
-          style={{
-            padding: "6px 12px",
-            fontSize: 11,
-            fontWeight: 600,
-            color: "var(--st-error)",
-            background: "transparent",
-            border: `1px solid var(--st-error)`,
-            borderRadius: 4,
-            cursor: "pointer",
-            transition: "all 0.2s ease",
-            opacity: isCopied ? 0.5 : 1,
-          }}
-          onMouseEnter={(e) => !isCopied && (e.currentTarget.style.background = "var(--st-error)", e.currentTarget.style.color = "white")}
-          onMouseLeave={(e) => !isCopied && (e.currentTarget.style.background = "transparent", e.currentTarget.style.color = "var(--st-error)")}
-        >
-          ❌ {showRejectInput ? "Cancel" : "Reject"}
-        </button>
+            <button
+              onClick={openReject}
+              style={outlineBtn("var(--st-error)", false)}
+              onMouseEnter={hoverIn("var(--st-error)")}
+              onMouseLeave={hoverOut("var(--st-error)")}
+              title="Reject the proposal. You'll be asked for a reason."
+            >
+              ❌ Reject
+            </button>
 
-        <button
-          onClick={handleAmend}
-          style={{
-            padding: "6px 12px",
-            fontSize: 11,
-            fontWeight: 600,
-            color: "var(--accent)",
-            background: "transparent",
-            border: `1px solid var(--accent)`,
-            borderRadius: 4,
-            cursor: "pointer",
-            transition: "all 0.2s ease",
-            opacity: isCopied ? 0.5 : 1,
-          }}
-          onMouseEnter={(e) => !isCopied && (e.currentTarget.style.background = "var(--accent)", e.currentTarget.style.color = "white")}
-          onMouseLeave={(e) => !isCopied && (e.currentTarget.style.background = "transparent", e.currentTarget.style.color = "var(--accent)")}
-        >
-          📝 {showAmendInput ? "Cancel" : "Amend"}
-        </button>
+            <button
+              onClick={openAmend}
+              style={outlineBtn("var(--accent)", false)}
+              onMouseEnter={hoverIn("var(--accent)")}
+              onMouseLeave={hoverOut("var(--accent)")}
+              title="Approve with a modification. You'll be asked for a comment."
+            >
+              📝 Amend
+            </button>
+          </>
+        )}
 
-        {isCopied && (
+        {copied && !isDecided && (
           <div style={{ fontSize: 10, color: "var(--fg-2)", marginLeft: "auto" }}>
-            📋 Decision copied — paste to PM
+            📋 Copied
           </div>
         )}
       </div>
