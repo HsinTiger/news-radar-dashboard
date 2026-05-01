@@ -9,6 +9,7 @@ export function Sidebar({ currentPage, setPage, counts = { queued: 0, dropped: 0
     { key: "home",     label: "首頁",         icon: "home" },
     { key: "queue",    label: "佇列",         icon: "queue",    badge: counts.queued },
     { key: "archive",  label: "歷史",         icon: "archive" },
+    { key: "cover",    label: "封面",         icon: "image" },
     { key: "dropped",  label: "被擋掉",       icon: "dropped",  badge: counts.dropped },
     { key: "persona",  label: "語氣 Persona", icon: "persona" },
     { key: "settings", label: "設定顯示",     icon: "settings" },

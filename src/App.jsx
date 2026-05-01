@@ -23,11 +23,13 @@ import { ArchivePage } from "@/pages/ArchivePage.jsx";
 import { DroppedPage } from "@/pages/DroppedPage.jsx";
 import { PersonaPage } from "@/pages/PersonaPage.jsx";
 import { SettingsPage } from "@/pages/SettingsPage.jsx";
+import { CoverPage } from "@/pages/CoverPage.jsx";
 
 const PATH_TO_KEY = {
   "/": "home",
   "/queue": "queue",
   "/archive": "archive",
+  "/cover": "cover",
   "/dropped": "dropped",
   "/persona": "persona",
   "/settings": "settings",
@@ -36,6 +38,7 @@ const KEY_TO_PATH = {
   home: "/",
   queue: "/queue",
   archive: "/archive",
+  cover: "/cover",
   dropped: "/dropped",
   persona: "/persona",
   settings: "/settings",
@@ -44,6 +47,7 @@ const TITLES = {
   home: { title: "總覽", subtitle: "自動化流程的即時脈搏" },
   queue: { title: "佇列", subtitle: "所有已產稿、待發或已發的貼文" },
   archive: { title: "歷史", subtitle: "已發布貼文與實際互動數據" },
+  cover: { title: "封面 Cover Audit", subtitle: "FB + IG 封面圖、品牌一致性檢查" },
   dropped: { title: "被擋掉", subtitle: "Scorer 判定不值得發的新聞" },
   persona: { title: "語氣 Persona", subtitle: "News Radar Soul 與各平台寫作紀律" },
   settings: { title: "設定顯示", subtitle: "門檻、主題權重、reflector 執行紀錄" },
@@ -118,6 +122,7 @@ export function App() {
             <Route path="/" element={<HomePage openDetail={openDetail} />} />
             <Route path="/queue" element={<QueuePage openDetail={openDetail} />} />
             <Route path="/archive" element={<ArchivePage openDetail={openDetail} />} />
+            <Route path="/cover" element={<CoverPage openDetail={openDetail} />} />
             <Route path="/dropped" element={<DroppedPage />} />
             <Route path="/persona" element={<PersonaPage />} />
             <Route path="/settings" element={<SettingsPage />} />
