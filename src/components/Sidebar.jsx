@@ -3,8 +3,27 @@
 // this component stays decoupled from react-router.
 
 import { Icon } from "@/components/Icon.jsx";
+import { fmtRel } from "@/lib/time.js";
 
-export function Sidebar({ currentPage, setPage, counts = { queued: 0, dropped: 0 } }) {
+// Format bytes → human MB string. Returns null when input is null/undefined,
+// so the caller can hide the field entirely (mock mode has no fetched DB).
+function formatDbSize(bytes) {
+  if (bytes == null) return null;
+  const mb = bytes / (1024 * 1024);
+  return `${mb.toFixed(2)} MB`;
+}
+
+export function Sidebar({
+  currentPage,
+  setPage,
+  counts = { queued: 0, dropped: 0 },
+  lastHeartbeatAt = null,
+  updatedAt = null,
+  dbBytes = null,
+}) {
+  const heartbeatLabel = lastHeartbeatAt ? fmtRel(lastHeartbeatAt) : "—";
+  const updatedLabel = updatedAt ? fmtRel(updatedAt) : "—";
+  const dbSizeLabel = formatDbSize(dbBytes);
   const items = [
     { key: "home",     label: "首頁",         icon: "home" },
     { key: "queue",    label: "佇列",         icon: "queue",    badge: counts.queued },
@@ -76,7 +95,7 @@ export function Sidebar({ currentPage, setPage, counts = { queued: 0, dropped: 0
         </span>
         <div style={{ flex: 1 }}>
           <div style={{ color: "var(--fg-1)", fontWeight: 500 }}>系統正常</div>
-          <div data-mono style={{ color: "var(--fg-3)", fontSize: 10, marginTop: 1 }}>上次心跳 42 分鐘前</div>
+          <div data-mono style={{ color: "var(--fg-3)", fontSize: 10, marginTop: 1 }}>上次心跳 {heartbeatLabel}</div>
         </div>
       </div>
 
@@ -133,7 +152,9 @@ export function Sidebar({ currentPage, setPage, counts = { queued: 0, dropped: 0
           <span className="nr-dot" style={{ background: "var(--st-published)", width: 6, height: 6 }} />
           <span>連線至 <span data-mono style={{ color: "var(--fg-2)" }}>origin/state</span></span>
         </div>
-        <div data-mono style={{ color: "var(--fg-4)" }}>DB 1.68 MB · 更新於 42 分前</div>
+        <div data-mono style={{ color: "var(--fg-4)" }}>
+          {dbSizeLabel ? `DB ${dbSizeLabel} · ` : ""}更新於 {updatedLabel}
+        </div>
       </div>
     </aside>
   );

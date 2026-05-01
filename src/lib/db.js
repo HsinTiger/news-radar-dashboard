@@ -44,5 +44,12 @@ export async function loadLiveDB() {
     throw new Error(`Failed to fetch DB (HTTP ${res.status}): ${url}`);
   }
   const buf = await res.arrayBuffer();
-  return new SQL.Database(new Uint8Array(buf));
+  // Return both the Database AND the raw byte length so the Sidebar
+  // footer can show "DB X.X MB · 更新於 N 分前" with a real number
+  // instead of a hardcoded literal. Caller can ignore `bytes` if not
+  // needed — backwards-compatible with existing destructuring.
+  return {
+    db: new SQL.Database(new Uint8Array(buf)),
+    bytes: buf.byteLength,
+  };
 }

@@ -71,7 +71,7 @@ export function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { items } = useNewsRadarDB();
+  const { items, system, updatedAt, dbBytes } = useNewsRadarDB();
 
   const [theme, setThemeState] = useState(getInitialTheme);
   useEffect(() => {
@@ -114,7 +114,14 @@ export function App() {
 
   return (
     <div style={{ display: "flex", height: "100vh", background: "var(--bg)", color: "var(--fg)" }}>
-      <Sidebar currentPage={currentPage} setPage={setPage} counts={counts} />
+      <Sidebar
+        currentPage={currentPage}
+        setPage={setPage}
+        counts={counts}
+        lastHeartbeatAt={system?.last_publish_at || null}
+        updatedAt={updatedAt}
+        dbBytes={dbBytes}
+      />
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
         <Topbar title={title} subtitle={subtitle} theme={theme} setTheme={setThemeState} />
         <main style={{ flex: 1, overflow: "auto", position: "relative" }}>

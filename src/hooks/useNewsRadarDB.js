@@ -123,7 +123,7 @@ export function useNewsRadarDB() {
         // refreshes swap data in place so the UI doesn't flash.
         if (tick === 0) setLoading(true);
 
-        const db = await loadLiveDB();
+        const { db, bytes: dbBytes } = await loadLiveDB();
         if (cancelled) {
           db.close();
           return;
@@ -141,6 +141,7 @@ export function useNewsRadarDB() {
           topics: adapter.buildTopics(db),
           now,
           updatedAt: now,
+          dbBytes,
           pipelineHealth: adapter.buildPipelineHealth(db, now),
           dropBreakdown: adapter.buildDropBreakdown(db),
           counterfactualScores: adapter.buildCounterfactualScores(db, now),
@@ -224,6 +225,7 @@ export function useNewsRadarDB() {
       topicById,
       now: snapshot.now,
       updatedAt: snapshot.updatedAt,
+      dbBytes: snapshot.dbBytes,
       pipelineHealth: snapshot.pipelineHealth,
       dropBreakdown: snapshot.dropBreakdown,
       counterfactualScores: snapshot.counterfactualScores,
