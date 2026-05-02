@@ -43,7 +43,7 @@ function publishedWithin(item, days) {
 function platformSuccess(item, platform) {
   // platforms field is { facebook: bool, instagram: bool, threads: bool }
   if (!item.platforms) return null;
-  const map = { fb: "facebook", ig: "instagram" };
+  const map = { fb: "facebook", ig: "instagram", threads: "threads" };
   return item.platforms[map[platform]] === true;
 }
 
@@ -138,26 +138,17 @@ function PlatformBadge({ platform, ok }) {
 }
 
 function CoverCard({ item, onOpenDetail }) {
-  const igUrl = coverUrl(item.draft_id || item.id, "ig");
-  const fbUrl = coverUrl(item.draft_id || item.id, "fb");
+  const draftId = item.draft_id || item.id;
+  const fbUrl = coverUrl(draftId, "fb");
+  const igUrl = coverUrl(draftId, "ig");
+  const threadsUrl = coverUrl(draftId, "threads");
 
   const fbOk = platformSuccess(item, "fb");
   const igOk = platformSuccess(item, "ig");
-  const fbThumb = (
-    <CoverThumb
-      src={fbUrl}
-      label="FB 1:1"
-      aspectStyle={{ width: 140, height: 140 }}
-    />
-  );
-  const igThumb = (
-    <CoverThumb
-      src={igUrl}
-      label="IG 4:5"
-      aspectStyle={{ width: 112, height: 140 }}
-    />
-  );
+  const threadsOk = platformSuccess(item, "threads");
 
+  // Thumbnail sizing — 3 thumbnails fit in card width.
+  // FB 1:1 (square), IG 4:5 (tall), Threads 4:5 (tall) — same as IG.
   return (
     <button
       onClick={() => onOpenDetail && onOpenDetail(item.id)}
@@ -202,13 +193,15 @@ function CoverCard({ item, onOpenDetail }) {
         <span>{item.publish_at ? fmtRel(item.publish_at) : "(未發布)"}</span>
         {item.topic_category && <span>· {item.topic_category}</span>}
       </div>
-      <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
-        {fbThumb}
-        {igThumb}
+      <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+        <CoverThumb src={fbUrl} label="FB" aspectStyle={{ width: 96, height: 96 }} />
+        <CoverThumb src={igUrl} label="IG" aspectStyle={{ width: 76, height: 96 }} />
+        <CoverThumb src={threadsUrl} label="TH" aspectStyle={{ width: 76, height: 96 }} />
       </div>
-      <div style={{ display: "flex", gap: 6 }}>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
         <PlatformBadge platform="FB" ok={fbOk} />
         <PlatformBadge platform="IG" ok={igOk} />
+        <PlatformBadge platform="TH" ok={threadsOk} />
       </div>
     </button>
   );
