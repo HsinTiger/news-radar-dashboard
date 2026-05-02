@@ -41,10 +41,32 @@ function publishedWithin(item, days) {
 }
 
 function platformSuccess(item, platform) {
-  // platforms field is { facebook: bool, instagram: bool, threads: bool }
-  if (!item.platforms) return null;
-  const map = { fb: "facebook", ig: "instagram", threads: "threads" };
-  return item.platforms[map[platform]] === true;
+  // Truth source: publish_log (real publish-time API result).
+  //
+  // Earlier this read item.platforms which is the COMPOSE-time flag —
+  // true if a platform_drafts row exists, regardless of whether the
+  // publish API call actually succeeded. That's misleading: caused 25h
+  // of "IG ✓ but actually nothing on IG profile" mystery on 2026-05-02.
+  //
+  // Now: look at the LATEST publish_log entry for this platform.
+  //   no entry          → null  (never attempted; badge shows "—")
+  //   success === true  → true  (badge shows ✓ green)
+  //   success === false → false (badge shows ✗ red)
+  const platformName = { fb: "facebook", ig: "instagram", threads: "threads" }[platform];
+  if (!platformName) return null;
+
+  const logs = item.publish_log;
+  if (!logs || logs.length === 0) return null;
+
+  const entries = logs.filter((l) => l.platform === platformName);
+  if (entries.length === 0) return null;
+
+  // Take the latest attempt — sort by posted_at desc, first entry wins.
+  // Lex-compares ISO timestamps which is stable.
+  const latest = entries.reduce(
+    (a, b) => (String(a.posted_at) > String(b.posted_at) ? a : b)
+  );
+  return latest.success === true;
 }
 
 // Reusable thumbnail with onError swap to placeholder.
